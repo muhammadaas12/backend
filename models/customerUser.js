@@ -7,9 +7,8 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   profileImage: { type: String, default: "" },
   profileImagePublicId: { type: String, default: "" },
-  role: { type: String, enum: [ "user"], default: "user" },
-  location: { type: String, default: "" }, 
-  
+  role: { type: String, enum: [ "customer"], default: "customer" },
+  location: { type: String, default: "" }, // For customers
 });
 
 // Hash password before saving
@@ -25,4 +24,4 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-module.exports = mongoose.model("User", userSchema);
+module.exports = mongoose.model("customerUser", userSchema);
