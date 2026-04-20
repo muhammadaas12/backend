@@ -1,9 +1,12 @@
+// models/EmployeeWeeklyPay.js
 const mongoose = require("mongoose");
 
-const weeklyPaySchema = new mongoose.Schema({
+const employeeWeeklyPaySchema = new mongoose.Schema({
   location: String,
-  weekStart: String, // e.g. "2026-03-23"
-  totalAmount: Number,
+  weekStart: String,
+  employeeId:String,
+  employeeName: String,
+  amount: Number,
 });
 
-module.exports = mongoose.model("WeeklyPay", weeklyPaySchema);
+module.exports = mongoose.model("WeeklyPay", employeeWeeklyPaySchema);

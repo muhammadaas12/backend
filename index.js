@@ -358,35 +358,32 @@ app.get("/weeklyTotal/folder/:folder/week/:weekStart", async (req, res) => {
 
 // ---------- Weekly Pay ----------
 app.post("/weekly-pay", async (req, res) => {
-  const { location, weekStart, totalAmount } = req.body;
-  if (!location || !weekStart || totalAmount === undefined) {
-    return res.status(400).json({ error: "location, weekStart, and totalAmount required" });
+  const { location, weekStart, employeeId, employeeName, amount } = req.body;
+  if (!location || !weekStart || !employeeId || amount === undefined) {
+    return res.status(400).json({ error: "Missing required fields" });
   }
   try {
-    const existing = await WeeklyPay.findOne({ location, weekStart });
-    if (existing) {
-      existing.totalAmount = totalAmount;
-      await existing.save();
-      return res.json({ success: true, weeklyPay: existing });
-    }
-    const newPay = new WeeklyPay({ location, weekStart, totalAmount });
-    await newPay.save();
-    res.json({ success: true, weeklyPay: newPay });
+    const filter = { location, weekStart, employeeId };
+    const update = { employeeName, amount };
+    const updated = await WeeklyPay.findOneAndUpdate(filter, update, {
+      upsert: true,
+      new: true,
+    });
+    res.json({ success: true, data: updated });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error saving weekly pay" });
+    res.status(500).json({ error: "Failed to save employee pay" });
   }
 });
 
 app.get("/weekly-pay/:location/:weekStart", async (req, res) => {
   const { location, weekStart } = req.params;
-  if (!location || !weekStart) return res.status(400).json({ error: "location and weekStart required" });
   try {
-    const pay = await WeeklyPay.findOne({ location, weekStart });
-    res.json({ success: true, totalAmount: pay ? pay.totalAmount : 0 });
+    const records = await WeeklyPay.find({ location, weekStart });
+    res.json({ success: true, data: records });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Error fetching weekly pay" });
+    res.status(500).json({ error: "Failed to fetch employee pay" });
   }
 });
 
