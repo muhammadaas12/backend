@@ -7,7 +7,6 @@ const dotenv = require("dotenv");
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
-
 dotenv.config();
 
 const User = require("./models/User");
@@ -152,7 +151,7 @@ app.post("/register", async (req, res) => {
     return res.status(400).json({ message: "All fields required" });
   try {
     const user = await User.create({ name, email, password, role: role || "customer" });
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.status(201).json({
       token,
       user: { id: user._id, name: user.name, email: user.email, profileImage: user.profileImage, role: user.role },
@@ -168,7 +167,7 @@ app.post("/customerregister", async (req, res) => {
     return res.status(400).json({ message: "All fields required" });
   try {
     const user = await customerUser.create({ name, email, password, role: role || "customer", location });
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.status(201).json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role, location: user.location },
@@ -184,7 +183,7 @@ app.post("/Login", async (req, res) => {
     const user = await User.findOne({ email });
     if (!user || !(await user.matchPassword(password)))
       return res.status(400).json({ message: "Invalid credentials" });
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role, profileImage: user.profileImage },
@@ -202,7 +201,7 @@ app.post("/customerlogin", async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     user.location = location || user.location;
     await user.save();
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role, location: user.location, profileImage: user.profileImage },
@@ -218,7 +217,7 @@ app.post("/adminLogin", async (req, res) => {
     const user = await adminUser.findOne({ email });
     if (!user || !(await user.matchPassword(password)))
       return res.status(400).json({ message: "Invalid credentials" });
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role, profileImage: user.profileImage },
@@ -234,7 +233,7 @@ app.post("/adminRegister", async (req, res) => {
     return res.status(400).json({ message: "All fields required" });
   try {
     const user = await adminUser.create({ name, email, password });
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.status(201).json({
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role, profileImage: user.profileImage },
@@ -396,6 +395,350 @@ app.get("/weekly-pay/:weekStart", async (req, res) => {
   }
 });
 
+app.post("/biometric/register", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;
+
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.biometric = fingerprint; // stored template
+    await user.save();
+
+    res.json({ message: "Biometric saved successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error saving biometric", error: err.message });
+  }
+});
+
+// Biometric login
+app.post("/biometric/login", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user || !user.biometric) {
+      return res.status(404).json({ message: "No biometric found" });
+    }
+
+    if (user.biometric !== fingerprint) {
+      return res.status(400).json({ message: "Fingerprint not matched" });
+    }
+
+    const token = jwt.sign({ id: user._id }, "secretKey", { expiresIn: "365d" });
+
+    res.json({ message: "Login success", token, user });
+  } catch (err) {
+    res.status(500).json({ message: "Error logging in", error: err.message });
+  }
+});
+
+
+app.post("/face/register", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+
+    if (!userId || !faceData) {
+      return res.status(400).json({ message: "Missing data" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    user.faceId = faceData;
+    await user.save();
+
+    res.json({ message: "Face ID saved successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error saving face ID", error: err.message });
+  }
+});
+
+// Face ID login
+app.post("/face/login", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user || !user.faceId) {
+      return res.status(404).json({ message: "No face data found" });
+    }
+
+    if (user.faceId !== faceData) {
+      return res.status(400).json({ message: "Face not matched" });
+    }
+
+    const token = jwt.sign({ id: user._id }, "secretKey", { expiresIn: "365d" });
+
+    res.json({ message: "Login success", token, user });
+  } catch (err) {
+    res.status(500).json({ message: "Error logging in", error: err.message });
+  }
+});
+// ==================== CUSTOMER BIOMETRIC ROUTES ====================
+
+// Register biometric for a customer
+app.post("/customer/biometric/register", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;   // userId is customer's _id
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing userId or fingerprint" });
+    }
+
+    const customer = await customerUser.findById(userId);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    customer.biometric = fingerprint;   // store device token
+    await customer.save();
+
+    res.json({ message: "Biometric registered successfully for customer" });
+  } catch (err) {
+    console.error("Customer biometric register error:", err);
+    res.status(500).json({ message: "Error saving biometric", error: err.message });
+  }
+});
+
+// Biometric login for customer
+app.post("/customer/biometric/login", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing userId or fingerprint" });
+    }
+
+    const customer = await customerUser.findById(userId);
+    if (!customer || !customer.biometric) {
+      return res.status(404).json({ message: "No biometric registered for this customer" });
+    }
+
+    if (customer.biometric !== fingerprint) {
+      return res.status(400).json({ message: "Invalid biometric token" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: customer._id, role: customer.role || "customer" },
+      "secretKey",
+      { expiresIn: "365d" }
+    );
+
+    // Prepare response data (matches your customerlogin endpoint structure)
+    const userData = {
+      id: customer._id,
+      name: customer.name,
+      email: customer.email,
+      role: customer.role,
+      location: customer.location,
+      profileImage: customer.profileImage || "",
+    };
+
+    res.json({ message: "Login successful", token, user: userData });
+  } catch (err) {
+    console.error("Customer biometric login error:", err);
+    res.status(500).json({ message: "Error logging in with biometric", error: err.message });
+  }
+});
+
+// ==================== CUSTOMER FACE ID ROUTES ====================
+
+// Register Face ID for a customer
+app.post("/customer/face/register", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+    if (!userId || !faceData) {
+      return res.status(400).json({ message: "Missing userId or faceData" });
+    }
+
+    const customer = await customerUser.findById(userId);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+
+    customer.faceId = faceData;
+    await customer.save();
+
+    res.json({ message: "Face ID registered successfully for customer" });
+  } catch (err) {
+    console.error("Customer Face ID register error:", err);
+    res.status(500).json({ message: "Error saving Face ID", error: err.message });
+  }
+});
+
+// Face ID login for customer
+app.post("/customer/face/login", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+    if (!userId || !faceData) {
+      return res.status(400).json({ message: "Missing userId or faceData" });
+    }
+
+    const customer = await customerUser.findById(userId);
+    if (!customer || !customer.faceId) {
+      return res.status(404).json({ message: "No Face ID registered for this customer" });
+    }
+
+    if (customer.faceId !== faceData) {
+      return res.status(400).json({ message: "Face ID mismatch" });
+    }
+
+    const token = jwt.sign(
+      { id: customer._id, role: customer.role || "customer" },
+      "secretKey",
+      { expiresIn: "365d" }
+    );
+
+    const userData = {
+      id: customer._id,
+      name: customer.name,
+      email: customer.email,
+      role: customer.role,
+      location: customer.location,
+      profileImage: customer.profileImage || "",
+    };
+
+    res.json({ message: "Login successful", token, user: userData });
+  } catch (err) {
+    console.error("Customer Face ID login error:", err);
+    res.status(500).json({ message: "Error logging in with Face ID", error: err.message });
+  }
+});
+
+// ==================== ADMIN BIOMETRIC ROUTES ====================
+
+// Register biometric for an admin
+app.post("/admin/biometric/register", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;   // userId is admin's _id
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing userId or fingerprint" });
+    }
+
+    const admin = await adminUser.findById(userId);
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    admin.biometric = fingerprint;   // store device token
+    await admin.save();
+
+    res.json({ message: "Biometric registered successfully for admin" });
+  } catch (err) {
+    console.error("Admin biometric register error:", err);
+    res.status(500).json({ message: "Error saving biometric", error: err.message });
+  }
+});
+
+// Biometric login for admin
+app.post("/admin/biometric/login", async (req, res) => {
+  try {
+    const { userId, fingerprint } = req.body;
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing userId or fingerprint" });
+    }
+
+    const admin = await adminUser.findById(userId);
+    if (!admin || !admin.biometric) {
+      return res.status(404).json({ message: "No biometric registered for this admin" });
+    }
+
+    if (admin.biometric !== fingerprint) {
+      return res.status(400).json({ message: "Invalid biometric token" });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: admin._id, role: admin.role || "admin" },
+      "secretKey",
+      { expiresIn: "365d" }
+    );
+
+    // Prepare response data (matches your adminLogin endpoint structure)
+    const userData = {
+      id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      profileImage: admin.profileImage || "",
+    };
+
+    res.json({ message: "Login successful", token, user: userData });
+  } catch (err) {
+    console.error("Admin biometric login error:", err);
+    res.status(500).json({ message: "Error logging in with biometric", error: err.message });
+  }
+});
+
+// ==================== ADMIN FACE ID ROUTES ====================
+
+// Register Face ID for admin
+app.post("/admin/face/register", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+    if (!userId || !faceData) {
+      return res.status(400).json({ message: "Missing userId or faceData" });
+    }
+
+    const admin = await adminUser.findById(userId);
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found" });
+    }
+
+    admin.faceId = faceData;
+    await admin.save();
+
+    res.json({ message: "Face ID registered successfully for admin" });
+  } catch (err) {
+    console.error("Admin Face ID register error:", err);
+    res.status(500).json({ message: "Error saving Face ID", error: err.message });
+  }
+});
+
+// Face ID login for admin
+app.post("/admin/face/login", async (req, res) => {
+  try {
+    const { userId, faceData } = req.body;
+    if (!userId || !faceData) {
+      return res.status(400).json({ message: "Missing userId or faceData" });
+    }
+
+    const admin = await adminUser.findById(userId);
+    if (!admin || !admin.faceId) {
+      return res.status(404).json({ message: "No Face ID registered for this admin" });
+    }
+
+    if (admin.faceId !== faceData) {
+      return res.status(400).json({ message: "Face ID mismatch" });
+    }
+
+    const token = jwt.sign(
+      { id: admin._id, role: admin.role || "admin" },
+      "secretKey",
+      { expiresIn: "365d" }
+    );
+
+    const userData = {
+      id: admin._id,
+      name: admin.name,
+      email: admin.email,
+      role: admin.role,
+      profileImage: admin.profileImage || "",
+    };
+
+    res.json({ message: "Login successful", token, user: userData });
+  } catch (err) {
+    console.error("Admin Face ID login error:", err);
+    res.status(500).json({ message: "Error logging in with Face ID", error: err.message });
+  }
+});
+
+
+
 // ---------- Attendance ----------
 app.post("/attendance", async (req, res) => {
   const { employeeId, employeeName, date, status, location, projectLocation } = req.body;
@@ -546,7 +889,7 @@ app.post("/addEmployee", async (req, res) => {
     await user.save({ session });
     await session.commitTransaction();
     session.endSession();
-    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
     res.status(201).json({ message: "Employee and user created successfully", employee, user: { id: user._id, name: user.name, email: user.email, role: user.role }, token });
   } catch (err) {
     await session.abortTransaction();

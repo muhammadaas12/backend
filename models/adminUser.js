@@ -8,6 +8,8 @@ const userSchema = new mongoose.Schema({
   profileImage: { type: String, default: "" },
   profileImagePublicId: { type: String, default: "" },
   role: { type: String, enum: ["admin"], default: "admin" },
+  biometric: { type: String, default: null },   // 👈 device token for fingerprint
+  faceId: { type: String, default: null },      // 👈 device token for face ID
 });
 
 // Hash password before saving
