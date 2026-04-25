@@ -180,7 +180,7 @@ app.post("/customerregister", async (req, res) => {
 app.post("/Login", async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email },).select("+password");
     if (!user || !(await user.matchPassword(password)))
       return res.status(400).json({ message: "Invalid credentials" });
     const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
