@@ -418,15 +418,15 @@ app.post("/biometric/register", async (req, res) => {
 // Biometric login
 app.post("/biometric/login", async (req, res) => {
   try {
-    const { userId, fingerprint } = req.body;
+    const { userId, deviceToken } = req.body;
 
     const user = await User.findById(userId);
     if (!user || !user.biometric) {
       return res.status(404).json({ message: "No biometric found" });
     }
 
-    if (user.biometric !== fingerprint) {
-      return res.status(400).json({ message: "Fingerprint not matched" });
+    if (user.biometric !== deviceToken) {
+      return res.status(400).json({ message: "Device not matched" });
     }
 
     const token = jwt.sign({ id: user._id }, "secretKey", { expiresIn: "365d" });
