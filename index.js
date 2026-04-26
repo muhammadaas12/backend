@@ -408,33 +408,24 @@ app.post("/biometric/register", async (req, res) => {
 
   res.json({ message: "Saved" });
 });
-
 app.post("/biometric/login", async (req, res) => {
   const { userId, deviceToken } = req.body;
-
   const user = await User.findById(userId).select("+biometric");
   if (!user) return res.status(404).json({ message: "User not found" });
-
   const match = await bcrypt.compare(deviceToken, user.biometric);
-
-  if (!match) {
-    return res.status(400).json({ message: "Mismatch" });
-  }
-
-  const token = jwt.sign({ id: user._id }, "secretKey", {
-    expiresIn: "365d",
-  });
-
+  if (!match) return res.status(400).json({ message: "Mismatch" });
+  const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
   res.json({
     token,
     user: {
       id: user._id,
       email: user.email,
       name: user.name,
+      role: user.role,   // ✅ add this line
+      profileImage: user.profileImage || "",
     },
   });
 });
-
 
 app.post("/face/register", async (req, res) => {
   try {
