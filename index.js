@@ -394,38 +394,49 @@ app.get("/weekly-pay/:weekStart", async (req, res) => {
     res.status(500).json({ error: "Error fetching weekly pay" });
   }
 });
+
 app.post("/biometric/register", async (req, res) => {
-  const { userId, fingerprint } = req.body;
+  try {
+    const { userId, fingerprint } = req.body;
 
-  const user = await User.findById(userId);
-  if (!user) return res.status(404).json({ message: "User not found" });
+    if (!userId || !fingerprint) {
+      return res.status(400).json({ message: "Missing data" });
+    }
 
-  const salt = await bcrypt.genSalt(10);
-  user.biometric = await bcrypt.hash(fingerprint, salt);
-  user.biometricEnabled = true;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-  await user.save();
+    user.biometric = fingerprint; // stored template
+    await user.save();
 
-  res.json({ message: "Saved" });
+    res.json({ message: "Biometric saved successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error saving biometric", error: err.message });
+  }
 });
+
+// Biometric login
 app.post("/biometric/login", async (req, res) => {
-  const { userId, deviceToken } = req.body;
-  const user = await User.findById(userId).select("+biometric");
-  if (!user) return res.status(404).json({ message: "User not found" });
-  const match = await bcrypt.compare(deviceToken, user.biometric);
-  if (!match) return res.status(400).json({ message: "Mismatch" });
-  const token = jwt.sign({ id: user._id, role: user.role }, "secretKey", { expiresIn: "365d" });
-  res.json({
-    token,
-    user: {
-      id: user._id,
-      email: user.email,
-      name: user.name,
-      role: user.role,   // ✅ add this line
-      profileImage: user.profileImage || "",
-    },
-  });
+  try {
+    const { userId, deviceToken } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user || !user.biometric) {
+      return res.status(404).json({ message: "No biometric found" });
+    }
+
+    if (user.biometric !== deviceToken) {
+      return res.status(400).json({ message: "Device not matched" });
+    }
+
+    const token = jwt.sign({ id: user._id }, "secretKey", { expiresIn: "365d" });
+
+    res.json({ message: "Login success", token, user });
+  } catch (err) {
+    res.status(500).json({ message: "Error logging in", error: err.message });
+  }
 });
+
 
 app.post("/face/register", async (req, res) => {
   try {

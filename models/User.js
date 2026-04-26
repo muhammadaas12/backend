@@ -13,10 +13,9 @@ const userSchema = new mongoose.Schema(
 
     // Biometric fields
     biometric: { type: String, default: null },     // ✅ ADD THIS LINE
-    biometricEnabled: { type: Boolean, default: false },
-    biometricType: { type: String, enum: ["fingerprint", "faceid"], default: null },
+    faceId: { type: String, default: null },        // ✅ ADD THIS LINE
   },
-  { timestamps: true }
+
 );
 
 // Hash password before saving
